@@ -4,11 +4,10 @@
 
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.INTERNET" />
-    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
-    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
 
     <application
-        android:name=".app.MyApplication"
+        android:name="com.halim.downloadfile.app.MyApplication"
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
@@ -19,12 +18,15 @@
         android:theme="@style/Theme.DownloadFile"
         tools:targetApi="31">
         <service
-            android:name=".MyService"
+            android:name="com.halim.downloadfile.services.MyIntentService"
+            android:exported="false"></service>
+        <service
+            android:name="com.halim.downloadfile.services.DownloadService"
             android:enabled="true"
-            android:exported="true"></service>
+            android:exported="true" />
 
         <activity
-            android:name=".ui.MainActivity"
+            android:name="com.halim.downloadfile.ui.MainActivity"
             android:exported="true"
             android:label="@string/app_name"
             android:theme="@style/Theme.DownloadFile">

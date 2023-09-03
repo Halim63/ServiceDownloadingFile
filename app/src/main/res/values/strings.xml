@@ -1,5 +1,10 @@
 <resources>
     <string name="app_name">DownloadFile</string>
-    <!-- TODO: Remove or change this placeholder text -->
     <string name="hello_blank_fragment">Hello blank fragment</string>
+    <string name="something_went_wrong">Something Went Wrong</string>
+    <string name="error">Error</string>
+    <string name="success">Success</string>
+    <string name="start_download">Start Download</string>
+    <string name="channelid">channelId</string>
+    <string name="stop_download">Stop Download</string>
 </resources>

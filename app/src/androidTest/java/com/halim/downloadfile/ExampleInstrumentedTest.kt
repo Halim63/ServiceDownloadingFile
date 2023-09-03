@@ -1,4 +1,4 @@
-package com.example.downloadfile
+package com.halim.downloadfile
 
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.ext.junit.runners.AndroidJUnit4
