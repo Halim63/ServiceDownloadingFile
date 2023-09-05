@@ -8,7 +8,7 @@ import javax.inject.Inject
 class BookRepo @Inject constructor(
     private val booksRemoteRepo: BooksRemoteRepo,
 ) {
-    suspend fun downloadBook(bookUrl: String): Response<ResponseBody> {
+     suspend fun downloadBook(bookUrl: String): Response<ResponseBody> {
         return booksRemoteRepo.downloadBook(bookUrl = bookUrl)
     }
 }

@@ -58,6 +58,8 @@ class DownloadService : Service() {
                         saveFile(getFilePath())
                         Toast.makeText(this@DownloadService, R.string.success, Toast.LENGTH_SHORT)
                             .show()
+                        stopSelf()
+
                     } else {
                         Toast.makeText(this@DownloadService, R.string.error, Toast.LENGTH_SHORT)
                             .show()
@@ -72,7 +74,6 @@ class DownloadService : Service() {
             }
         }
 
-        stopSelf()
         return START_NOT_STICKY
     }
 
@@ -132,6 +133,7 @@ class DownloadService : Service() {
         )
         val builder = NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle("Downloading")
+            .setContentText("................")
             .setSmallIcon(R.drawable.baseline_notifications_24)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setContentIntent(pendingIntent)

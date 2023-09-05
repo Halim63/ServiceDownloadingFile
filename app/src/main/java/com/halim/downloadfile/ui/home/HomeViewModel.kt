@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.halim.downloadfile.Resource
 import com.halim.downloadfile.repository.books.BookRepo
 import dagger.hilt.android.lifecycle.HiltViewModel
+import io.reactivex.rxjava3.disposables.CompositeDisposable
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import java.io.InputStream

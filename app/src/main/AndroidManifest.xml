@@ -5,6 +5,7 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
     <application
         android:name="com.halim.downloadfile.app.MyApplication"
@@ -17,9 +18,16 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.DownloadFile"
         tools:targetApi="31">
-        <service
-            android:name="com.halim.downloadfile.services.MyIntentService"
-            android:exported="false"></service>
+        <receiver
+            android:name="com.halim.downloadfile.MyReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+            </intent-filter>
+        </receiver>
+
+
         <service
             android:name="com.halim.downloadfile.services.DownloadService"
             android:enabled="true"
