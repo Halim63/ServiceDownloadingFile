@@ -7,4 +7,5 @@
     <string name="start_download">Start Download</string>
     <string name="channelid">channelId</string>
     <string name="stop_download">Stop Download</string>
+    <string name="status">Status</string>
 </resources>

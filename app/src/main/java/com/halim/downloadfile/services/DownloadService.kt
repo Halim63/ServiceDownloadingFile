@@ -7,11 +7,13 @@ import android.app.PendingIntent
 import android.app.Service
 import android.content.Intent
 import android.os.Build
+import android.os.Bundle
 import android.os.IBinder
 import android.widget.Toast
 import androidx.core.app.NotificationCompat
 import com.example.downloadfile.R
 import com.halim.downloadfile.Resource
+import com.halim.downloadfile.State
 import com.halim.downloadfile.repository.books.BookRepo
 import com.halim.downloadfile.ui.MainActivity
 import kotlinx.coroutines.CoroutineScope
@@ -41,12 +43,14 @@ class DownloadService : Service() {
         TODO("Return the communication channel to the service.")
     }
 
+
     override fun onStartCommand(intent: Intent, flags: Int, startId: Int): Int {
         Toast.makeText(this, "service Started", Toast.LENGTH_SHORT).show()
         startForeground(1, getNotification())
         if (STOP_SERVICE == intent.action) {
             stopSelf()
         }
+        sendBroadCast()
 
         coroutineScope.launch {
             if (::bookRepo.isInitialized) {
@@ -77,6 +81,11 @@ class DownloadService : Service() {
         return START_NOT_STICKY
     }
 
+    private fun sendBroadCast() {
+        val intent = Intent("com.halim.EXAMPLE_ACTION")
+        sendBroadcast(intent)
+    }
+
 
     private fun getFilePath(): String =
         cacheDir?.absolutePath + "halim${System.currentTimeMillis()}.pdf"
@@ -92,6 +101,7 @@ class DownloadService : Service() {
         Toast.makeText(this, "service Stoped", Toast.LENGTH_SHORT).show()
 
     }
+
     private fun saveFile(pathWhereYouWantToSaveFile: String): Boolean {
         try {
             //val file = File(getCacheDir(), "cacheFileAppeal.srl")

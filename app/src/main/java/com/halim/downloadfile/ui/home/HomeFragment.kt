@@ -1,11 +1,17 @@
 package com.halim.downloadfile.ui.home
 
+import android.content.BroadcastReceiver
+import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
+import android.os.Build
 import android.os.Bundle
 import androidx.fragment.app.Fragment
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.Toast
+import androidx.annotation.RequiresApi
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.viewModels
 import com.example.downloadfile.R
@@ -21,7 +27,7 @@ import java.io.InputStream
 @AndroidEntryPoint
 class HomeFragment : Fragment() {
     private val homeViewModel by viewModels<HomeViewModel>()
-
+    lateinit var state: State
     private lateinit var binding: FragmentHomeBinding
 
     override fun onCreateView(
@@ -36,22 +42,62 @@ class HomeFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         setUpDownloadBookObserver()
-
         binding.btnDownload.setOnClickListener {
             homeViewModel.downloadBook()
             startForegroundService()
+
 
         }
         binding.stopDownload.setOnClickListener {
             stopService()
         }
 
+
     }
+
 
     private fun stopService() {
         val intent = Intent(requireContext(), DownloadService::class.java)
         context?.stopService(intent)
     }
+
+    private val broadcastReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+
+            homeViewModel.downloadBookLiveData.observe(viewLifecycleOwner) { result ->
+                when (result.state) {
+                    State.LOADING ->  binding.tvStatus.text = State.LOADING.toString()
+                    State.SUCCESS -> binding.tvStatus.text = State.SUCCESS.toString()
+                    State.ERROR -> binding.tvStatus.text = State.ERROR.toString()
+                }
+            }
+
+        }
+
+    }
+
+    @RequiresApi(Build.VERSION_CODES.TIRAMISU)
+    override fun onStart() {
+        super.onStart()
+        registerReceiver()
+
+    }
+
+    override fun onStop() {
+        super.onStop()
+        unRegisterReceiver()
+    }
+
+    @RequiresApi(Build.VERSION_CODES.TIRAMISU)
+    private fun registerReceiver() {
+        val intentFilter = IntentFilter("com.halim.EXAMPLE_ACTION")
+        activity?.registerReceiver(broadcastReceiver, intentFilter, Context.RECEIVER_NOT_EXPORTED)
+    }
+
+    private fun unRegisterReceiver() {
+        activity?.unregisterReceiver(broadcastReceiver)
+    }
+
 
     private fun startForegroundService() {
         val intent = Intent(context, DownloadService::class.java)

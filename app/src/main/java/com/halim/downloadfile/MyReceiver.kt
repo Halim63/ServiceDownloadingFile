@@ -9,8 +9,9 @@ class MyReceiver : BroadcastReceiver() {
 
     override fun onReceive(context: Context, intent: Intent) {
         if ("android.intent.action.BOOT_COMPLETED" == intent.action) {
-            val intent = Intent(context, DownloadService::class.java)
-            context.startForegroundService(intent)
+            val intentService = Intent(context, DownloadService::class.java)
+            context.startForegroundService(intentService)
+
         }
 
     }
