@@ -1,4 +1,4 @@
-package com.halim.downloadfile
+package com.halim.downloadfile.base
 
 class Resource<T> private constructor(
     val state: State,

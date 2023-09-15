@@ -8,4 +8,6 @@
     <string name="channelid">channelId</string>
     <string name="stop_download">Stop Download</string>
     <string name="status">Status</string>
+    <string name="notification_title">Downloading</string>
+    <string name="notification_channel_name">notification channel name</string>
 </resources>
