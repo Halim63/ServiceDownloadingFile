@@ -1,5 +1,6 @@
 package com.halim.downloadfile.service
 
+import android.annotation.SuppressLint
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -13,22 +14,23 @@ import com.halim.downloadfile.receivers.DownloadStatusReceiver
 import com.halim.downloadfile.repository.books.BookRepo
 import com.halim.downloadfile.ui.MainActivity
 import dagger.hilt.android.AndroidEntryPoint
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.launch
+import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers
+import io.reactivex.rxjava3.core.Observable
+import io.reactivex.rxjava3.disposables.CompositeDisposable
+import io.reactivex.rxjava3.kotlin.subscribeBy
+import io.reactivex.rxjava3.schedulers.Schedulers
+import okhttp3.ResponseBody
+import retrofit2.Response
 import java.io.FileOutputStream
 import java.io.InputStream
 import javax.inject.Inject
 
-const val bookUrl =
-    "https://www.hsbc.co.uk/content/dam/hsbc/gb/pdf/hsbcuk-how-to-view-and-download-statements.pdf"
 
 @AndroidEntryPoint
 class DownloadService : Service() {
     private val CHANNEL_ID = "x_channelId"
-    private val job = SupervisorJob()
-    private val coroutineScope = CoroutineScope(context = Dispatchers.IO + job)
+    private val compositeDisposable = CompositeDisposable()
+
 
     @Inject
     lateinit var bookRepo: BookRepo
@@ -38,33 +40,22 @@ class DownloadService : Service() {
         return null
     }
 
-
+    @SuppressLint("CheckResult")
     override fun onStartCommand(intent: Intent, flags: Int, startId: Int): Int {
         startForeground(1, getNotification())
         updateDownloadStatus(DownloadStatusReceiver.Companion.DownloadStatus.LOADING.toString())
 
-        coroutineScope.launch {
-            try {
-                val response = bookRepo.downloadBook(
-                    bookUrl = bookUrl
+        fun onDownloadFileResponse(response: Response<ResponseBody>) {
+            if (response.isSuccessful && response.body()?.byteStream() != null) {
+
+                saveFile(getFilePath(), response.body()?.byteStream()!!)
+                updateDownloadStatus(
+                    status = DownloadStatusReceiver.Companion.DownloadStatus.SUCCESS.toString()
                 )
-                if (response.isSuccessful && response.body()?.byteStream() != null) {
-                    saveFile(getFilePath(), response.body()?.byteStream()!!)
-                    updateDownloadStatus(
-                        status = DownloadStatusReceiver.Companion.DownloadStatus.SUCCESS.toString()
-                    )
 
-                    stopDownloadService()
+                stopDownloadService()
 
-                } else {
-                    updateDownloadStatus(
-                        status = DownloadStatusReceiver.Companion.DownloadStatus.ERROR.toString()
-                    )
-
-                }
-
-            } catch (e: Exception) {
-                e.printStackTrace()
+            } else {
                 updateDownloadStatus(
                     status = DownloadStatusReceiver.Companion.DownloadStatus.ERROR.toString()
                 )
@@ -73,8 +64,45 @@ class DownloadService : Service() {
 
         }
 
+        val observable = bookRepo.multipleDownload()
+
+
+        compositeDisposable.add(
+            observable
+                .subscribeOn(Schedulers.io())
+                .flatMapIterable { booksResponse ->
+                    return@flatMapIterable booksResponse
+                }
+
+
+                .observeOn(AndroidSchedulers.mainThread())
+
+                .flatMap { book ->
+
+                    return@flatMap bookRepo.downloadBook(book.fileUrl)
+
+                }
+                .flatMap { response ->
+                    onDownloadFileResponse(response)
+
+                    return@flatMap Observable.just(true)
+                }
+                .toList()
+
+                .subscribeBy(
+                    onError = {
+                        updateDownloadStatus(
+                            status = DownloadStatusReceiver.Companion.DownloadStatus.ERROR.toString()
+                        )
+                    }
+                )
+        )
+
+
+
         return START_STICKY
     }
+
 
     private fun updateDownloadStatus(status: String) {
         val intent = Intent(DownloadStatusReceiver.DOWNLOAD_STATUS_BROAD_CAST_RECEIVER_ACTION)
@@ -95,8 +123,8 @@ class DownloadService : Service() {
 
     private fun saveFile(path: String, input: InputStream?): Boolean {
         try {
-            val fos = FileOutputStream(path)
-            fos.use { output ->
+            val fileOutputStream = FileOutputStream(path)
+            fileOutputStream.use { output ->
                 val buffer = ByteArray(4 * 1024) // or other buffer size
                 var read = 0
                 while (input?.read(buffer)?.also {
@@ -131,4 +159,11 @@ class DownloadService : Service() {
             .setPriority(NotificationCompat.PRIORITY_HIGH).setContentIntent(pendingIntent)
         return builder.build()
     }
+
+    override fun onDestroy() {
+        compositeDisposable.clear()
+        super.onDestroy()
+    }
+
+
 }

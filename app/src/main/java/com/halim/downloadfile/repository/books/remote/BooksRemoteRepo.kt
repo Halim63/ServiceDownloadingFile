@@ -5,7 +5,12 @@ import javax.inject.Inject
 class BooksRemoteRepo @Inject constructor(
     private val booksApiRetrofitInterface: BooksApiRetrofitInterface,
 ) {
-    suspend fun downloadBook(bookUrl: String) =
+     fun downloadBook(bookUrl: String) =
         booksApiRetrofitInterface.downloadBook(bookUrl = bookUrl)
+     fun multipleDownload() =
+        booksApiRetrofitInterface.multipleDownload()
+
+
 
 }
+
