@@ -8,8 +8,12 @@ import android.app.PendingIntent
 import android.app.Service
 import android.content.Intent
 import android.os.IBinder
+import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.halim.downloadfile.R
+import com.halim.downloadfile.extensions.debug
+import com.halim.downloadfile.extensions.error
+import com.halim.downloadfile.model.GetBooksResponseModel
 import com.halim.downloadfile.receivers.DownloadStatusReceiver
 import com.halim.downloadfile.repository.books.BookRepo
 import com.halim.downloadfile.ui.MainActivity
@@ -17,6 +21,7 @@ import dagger.hilt.android.AndroidEntryPoint
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers
 import io.reactivex.rxjava3.core.Observable
 import io.reactivex.rxjava3.disposables.CompositeDisposable
+import io.reactivex.rxjava3.functions.Function
 import io.reactivex.rxjava3.kotlin.subscribeBy
 import io.reactivex.rxjava3.schedulers.Schedulers
 import okhttp3.ResponseBody
@@ -26,9 +31,12 @@ import java.io.InputStream
 import javax.inject.Inject
 
 
+private const val CHANNEL_ID = "download_channel_id"
+private const val DOWNLOAD_NOTIFICATION_ID = 22
+private const val TAG = "downloadService"
+
 @AndroidEntryPoint
 class DownloadService : Service() {
-    private val CHANNEL_ID = "x_channelId"
     private val compositeDisposable = CompositeDisposable()
 
 
@@ -40,67 +48,139 @@ class DownloadService : Service() {
         return null
     }
 
-    @SuppressLint("CheckResult")
-    override fun onStartCommand(intent: Intent, flags: Int, startId: Int): Int {
-        startForeground(1, getNotification())
-        updateDownloadStatus(DownloadStatusReceiver.Companion.DownloadStatus.LOADING.toString())
 
-        fun onDownloadFileResponse(response: Response<ResponseBody>) {
-            if (response.isSuccessful && response.body()?.byteStream() != null) {
-
-                saveFile(getFilePath(), response.body()?.byteStream()!!)
-                updateDownloadStatus(
-                    status = DownloadStatusReceiver.Companion.DownloadStatus.SUCCESS.toString()
-                )
-
-                stopDownloadService()
-
-            } else {
-                updateDownloadStatus(
-                    status = DownloadStatusReceiver.Companion.DownloadStatus.ERROR.toString()
-                )
-            }
-
+    private fun buildDownloadObservable(books: GetBooksResponseModel): List<Observable<Response<ResponseBody>>> =
+        books.map { book ->
+            bookRepo.downloadBook(book.fileUrl)
+                .subscribeOn(Schedulers.io())
 
         }
 
-        val observable = bookRepo.multipleDownload()
 
+    @SuppressLint("CheckResult")
+    override fun onStartCommand(intent: Intent, flags: Int, startId: Int): Int {
+
+        startForeground(DOWNLOAD_NOTIFICATION_ID, getNotification())
+
+        updateDownloadStatus(DownloadStatusReceiver.Companion.DownloadStatus.LOADING.toString())
 
         compositeDisposable.add(
-            observable
-                .subscribeOn(Schedulers.io())
-                .flatMapIterable { booksResponse ->
-                    return@flatMapIterable booksResponse
-                }
-
-
-                .observeOn(AndroidSchedulers.mainThread())
-
-                .flatMap { book ->
-
-                    return@flatMap bookRepo.downloadBook(book.fileUrl)
-
-                }
+            bookRepo.getBooks()
                 .flatMap { response ->
-                    onDownloadFileResponse(response)
 
-                    return@flatMap Observable.just(true)
-                }
-                .toList()
+                    return@flatMap Observable.create<List<Response<ResponseBody>>> { emiter ->
+                        Observable.zip(
+                            buildDownloadObservable(response)
+                        ) { downloadedBooksResponse ->
+                            val response = downloadedBooksResponse as Array<Response<ResponseBody>>
+                            emiter.onNext(response.toList())
+                        }
+                    }
+                        .flatMapIterable { downloadBooks ->
+                            downloadBooks
+                        }
+                        .flatMap { book ->
+                            onDownloadFileResponse(book)
+                            debug(book)
+                            Observable.just(true)
 
+                        }
+                }.subscribeOn(Schedulers.io())
+                .observeOn(AndroidSchedulers.mainThread())
                 .subscribeBy(
-                    onError = {
+                    onComplete = {
+                        debug("downloaded all files")
+                        stopDownloadService()
+                    },
+                    onError = { throwable ->
+                        error(throwable.printStackTrace())
+
                         updateDownloadStatus(
                             status = DownloadStatusReceiver.Companion.DownloadStatus.ERROR.toString()
                         )
                     }
                 )
         )
-
+//        compositeDisposable.add(
+//            bookRepo.getBooks()
+//                .subscribeOn(Schedulers.io())
+//                .observeOn(AndroidSchedulers.mainThread())
+//                .subscribeBy(
+//                    onNext = { booksResponseModel ->
+//                        booksResponseModel.forEach { bookModel ->
+//                            bookRepo.downloadBook(bookModel.fileUrl)
+//                            debug(bookModel)
+//                            updateDownloadStatus(
+//                                status = DownloadStatusReceiver.Companion.DownloadStatus.SUCCESS.toString()
+//                            )
+//                        }
+//                    },
+//                    onComplete = {
+//                        debug("downloaded all files")
+//                        stopDownloadService()
+//                    },
+//                    onError = { throwable ->
+//                        error(throwable)
+//                        updateDownloadStatus(
+//                            status = DownloadStatusReceiver.Companion.DownloadStatus.ERROR.toString()
+//                        )
+//                    },
+//
+//
+//                    )
+//        )
+//        compositeDisposable.add(
+//            bookRepo.getBooks()
+//                .flatMapIterable { booksResponse ->
+//                    return@flatMapIterable booksResponse
+//                }
+//                .flatMap { book ->
+//                    debug(book)
+//                    return@flatMap bookRepo.downloadBook(book.fileUrl)
+//                }
+//                .flatMap { response ->
+//                    onDownloadFileResponse(response)
+//                    return@flatMap Observable.just(true)
+//                }
+//                .toList()
+//                .subscribeOn(Schedulers.io())
+//                .observeOn(AndroidSchedulers.mainThread())
+//                .subscribeBy(
+//                    onSuccess = {
+//                        debug("downloaded all files")
+//                        stopDownloadService()
+//                    },
+//                    onError = { throwable ->
+//                        error(throwable)
+//
+//                        updateDownloadStatus(
+//                            status = DownloadStatusReceiver.Companion.DownloadStatus.ERROR.toString()
+//                        )
+//                    }
+//                )
+//        )
 
 
         return START_STICKY
+    }
+
+    private fun onDownloadFileResponse(response: Response<ResponseBody>) {
+        if (response.isSuccessful && response.body()?.byteStream() != null) {
+
+            saveFile(getFilePath(), response.body()?.byteStream()!!)
+            updateDownloadStatus(
+                status = DownloadStatusReceiver.Companion.DownloadStatus.SUCCESS.toString()
+            )
+
+            stopDownloadService()
+
+        } else {
+            updateDownloadStatus(
+                status = DownloadStatusReceiver.Companion.DownloadStatus.ERROR.toString()
+            )
+        }
+
+
     }
 
 
@@ -112,6 +192,7 @@ class DownloadService : Service() {
     }
 
     private fun stopDownloadService() {
+        compositeDisposable.dispose()
         stopForeground(STOP_FOREGROUND_REMOVE)
         stopSelf()
     }
@@ -158,11 +239,6 @@ class DownloadService : Service() {
             .setSmallIcon(R.drawable.baseline_notifications_24)
             .setPriority(NotificationCompat.PRIORITY_HIGH).setContentIntent(pendingIntent)
         return builder.build()
-    }
-
-    override fun onDestroy() {
-        compositeDisposable.clear()
-        super.onDestroy()
     }
 
 

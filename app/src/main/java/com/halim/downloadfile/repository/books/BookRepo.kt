@@ -1,6 +1,6 @@
 package com.halim.downloadfile.repository.books
 
-import com.halim.downloadfile.model.Download
+import com.halim.downloadfile.model.GetBooksResponseModel
 import com.halim.downloadfile.repository.books.remote.BooksRemoteRepo
 import io.reactivex.rxjava3.core.Observable
 import okhttp3.ResponseBody
@@ -15,7 +15,7 @@ class BookRepo @Inject constructor(
     }
 
 
-    fun multipleDownload(): Observable<Download> {
-        return booksRemoteRepo.multipleDownload()
+    fun getBooks(): Observable<GetBooksResponseModel> {
+        return booksRemoteRepo.getBooks()
     }
 }

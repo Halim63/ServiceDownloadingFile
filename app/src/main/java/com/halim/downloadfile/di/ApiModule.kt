@@ -1,5 +1,6 @@
 package com.halim.downloadfile.di
 
+import com.halim.downloadfile.base.Constants
 import com.halim.downloadfile.repository.books.remote.BooksApiRetrofitInterface
 import dagger.Module
 import dagger.Provides
@@ -14,7 +15,6 @@ import javax.inject.Singleton
 @Module
 @InstallIn(SingletonComponent::class)
 object ApiModule {
-    private const val BASE_URL = "https://hub.dummyapis.com/"
 
     @Provides
     @Singleton
@@ -26,7 +26,7 @@ object ApiModule {
     @Singleton
     fun provideRetrofit(): Retrofit {
         return Retrofit.Builder()
-            .baseUrl(BASE_URL)
+            .baseUrl(Constants.BASE_URL)
             .addCallAdapterFactory(RxJava3CallAdapterFactory.create())
             .addConverterFactory(GsonConverterFactory.create())
             .build()

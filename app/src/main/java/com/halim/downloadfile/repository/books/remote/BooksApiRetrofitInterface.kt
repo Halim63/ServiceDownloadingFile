@@ -1,6 +1,6 @@
 package com.halim.downloadfile.repository.books.remote
 
-import com.halim.downloadfile.model.Download
+import com.halim.downloadfile.model.GetBooksResponseModel
 import okhttp3.ResponseBody
 import retrofit2.Response
 import retrofit2.http.GET
@@ -16,7 +16,7 @@ interface BooksApiRetrofitInterface{
     @GET
      fun downloadBook(@Url bookUrl: String): Observable<Response<ResponseBody>>
 
-     @GET("vj/mmqGu3P")
-     fun multipleDownload():Observable<Download>
+     @GET(BooksApiConstants.GET_BOOKS_API_URL)
+     fun getBooks():Observable<GetBooksResponseModel>
 
 }

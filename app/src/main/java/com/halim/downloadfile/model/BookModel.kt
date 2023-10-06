@@ -1,6 +1,6 @@
 package com.halim.downloadfile.model
 
-data class DownloadItem(
+data class BookModel(
     val fileUrl: String,
     val title: String
 )

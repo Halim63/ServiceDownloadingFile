@@ -19,7 +19,6 @@ import dagger.hilt.android.AndroidEntryPoint
 @AndroidEntryPoint
 class HomeFragment : Fragment() {
 
-    private val viewModel by viewModels<HomeViewModel>()
     private lateinit var binding: FragmentHomeBinding
     private var downloadStatusReceiver = DownloadStatusReceiver(::onDownloadStatusChange)
 
@@ -47,6 +46,10 @@ class HomeFragment : Fragment() {
         }
     }
 
+    private fun startForegroundService() {
+        val intent = Intent(context, DownloadService::class.java)
+        context?.startForegroundService(intent)
+    }
 
     private fun stopService() {
         val intent = Intent(requireContext(), DownloadService::class.java)
@@ -78,10 +81,6 @@ class HomeFragment : Fragment() {
         activity?.unregisterReceiver(downloadStatusReceiver)
     }
 
-    private fun startForegroundService() {
-        val intent = Intent(context, DownloadService::class.java)
-        context?.startForegroundService(intent)
-    }
 
     private fun onDownloadStatusChange(status: DownloadStatusReceiver.Companion.DownloadStatus) {
         binding.tvStatus.text = status.toString()
