@@ -12,6 +12,7 @@ class BookRepo @Inject constructor(
 ) {
     fun downloadBook(bookUrl: String): Observable<Response<ResponseBody>> {
         return booksRemoteRepo.downloadBook(bookUrl = bookUrl)
+
     }
 
 

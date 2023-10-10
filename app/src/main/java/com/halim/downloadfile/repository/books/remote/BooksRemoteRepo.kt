@@ -11,7 +11,6 @@ class BooksRemoteRepo @Inject constructor(
 ) {
     fun downloadBook(bookUrl: String): Observable<Response<ResponseBody>> =
         booksApiRetrofitInterface.downloadBook(bookUrl = bookUrl)
-
     fun getBooks(): Observable<GetBooksResponseModel> = booksApiRetrofitInterface.getBooks()
 
 

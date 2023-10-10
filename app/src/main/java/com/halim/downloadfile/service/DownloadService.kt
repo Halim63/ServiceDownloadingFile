@@ -8,11 +8,9 @@ import android.app.PendingIntent
 import android.app.Service
 import android.content.Intent
 import android.os.IBinder
-import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.halim.downloadfile.R
 import com.halim.downloadfile.extensions.debug
-import com.halim.downloadfile.extensions.error
 import com.halim.downloadfile.model.GetBooksResponseModel
 import com.halim.downloadfile.receivers.DownloadStatusReceiver
 import com.halim.downloadfile.repository.books.BookRepo
@@ -20,8 +18,8 @@ import com.halim.downloadfile.ui.MainActivity
 import dagger.hilt.android.AndroidEntryPoint
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers
 import io.reactivex.rxjava3.core.Observable
+import io.reactivex.rxjava3.core.ObservableSource
 import io.reactivex.rxjava3.disposables.CompositeDisposable
-import io.reactivex.rxjava3.functions.Function
 import io.reactivex.rxjava3.kotlin.subscribeBy
 import io.reactivex.rxjava3.schedulers.Schedulers
 import okhttp3.ResponseBody
@@ -33,7 +31,6 @@ import javax.inject.Inject
 
 private const val CHANNEL_ID = "download_channel_id"
 private const val DOWNLOAD_NOTIFICATION_ID = 22
-private const val TAG = "downloadService"
 
 @AndroidEntryPoint
 class DownloadService : Service() {
@@ -52,6 +49,11 @@ class DownloadService : Service() {
     private fun buildDownloadObservable(books: GetBooksResponseModel): List<Observable<Response<ResponseBody>>> =
         books.map { book ->
             bookRepo.downloadBook(book.fileUrl)
+                .onErrorResumeNext { throwable ->
+                    return@onErrorResumeNext ObservableSource {
+                        throwable.localizedMessage?.let { throwable -> debug(throwable) }
+                    }
+                }
                 .subscribeOn(Schedulers.io())
 
         }
@@ -72,23 +74,42 @@ class DownloadService : Service() {
                         Observable.zip(
                             buildDownloadObservable(response)
                         ) { downloadedBooksResponse ->
-                            val response = downloadedBooksResponse as Array<Response<ResponseBody>>
-                            emiter.onNext(response.toList())
-                        }
-                    }
-                        .flatMapIterable { downloadBooks ->
-                            downloadBooks
-                        }
-                        .flatMap { book ->
-                            onDownloadFileResponse(book)
-                            debug(book)
-                            Observable.just(true)
+                            val response = downloadedBooksResponse.map { item ->
+                                item as Response<ResponseBody>
+                            }
+                            return@zip response
 
                         }
-                }.subscribeOn(Schedulers.io())
+                            .subscribeBy(
+                                onNext = { downloads ->
+                                    emiter.onNext(downloads)
+                                    emiter.onComplete()
+                                },
+                                onError = { throwable ->
+                                    throwable.printStackTrace()
+
+
+                                }
+                            )
+                    }
+                }
+                .flatMapIterable { downloadBooks ->
+                    downloadBooks
+                }
+
+                .flatMap { book ->
+                    debug("saving book${book.toString()}")
+                    onDownloadFileResponse(book)
+                    return@flatMap Observable.just(true)
+                }
+                .toList()
+
+
+                .subscribeOn(Schedulers.io())
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribeBy(
-                    onComplete = {
+
+                    onSuccess = {
                         debug("downloaded all files")
                         stopDownloadService()
                     },
@@ -100,6 +121,7 @@ class DownloadService : Service() {
                         )
                     }
                 )
+
         )
 //        compositeDisposable.add(
 //            bookRepo.getBooks()
@@ -171,8 +193,6 @@ class DownloadService : Service() {
             updateDownloadStatus(
                 status = DownloadStatusReceiver.Companion.DownloadStatus.SUCCESS.toString()
             )
-
-            stopDownloadService()
 
         } else {
             updateDownloadStatus(
